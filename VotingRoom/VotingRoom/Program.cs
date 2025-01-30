@@ -1,5 +1,6 @@
-using VotingRoom.Client.Pages;
+using Microsoft.AspNetCore.ResponseCompression;
 using VotingRoom.Components;
+using VotingRoom.Hubs;
 
 namespace VotingRoom
 {
@@ -9,11 +10,21 @@ namespace VotingRoom
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.Services.AddSignalR();
+
+            builder.Services.AddResponseCompression(opts =>
+            {
+                opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+                    ["application/octet-stream"]);
+            });
+
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveWebAssemblyComponents();
 
             var app = builder.Build();
+
+            app.UseResponseCompression();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -35,6 +46,8 @@ namespace VotingRoom
             app.MapRazorComponents<App>()
                 .AddInteractiveWebAssemblyRenderMode()
                 .AddAdditionalAssemblies(typeof(Client._Imports).Assembly);
+
+            app.MapHub<VoteHub>("/votehub");
 
             app.Run();
         }
