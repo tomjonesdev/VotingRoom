@@ -1,0 +1,74 @@
+﻿@page "/vote"
+@rendermode InteractiveWebAssembly
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<PageTitle>Vote</PageTitle>
+
+<div class="card-group">
+    <div class="card" style="width: 18rem;">
+        <div class="card-body">
+            <button class="card-title" @onclick="() => CastVote(1)" disabled="@(!IsConnected)">1</button>
+        </div>
+        <p>@voters.Count</p>
+        <ul class="list-group list-group-flush">
+            @foreach (var voter in voters)
+            {
+                <li class="list-group-item">@voter</li>
+            }
+        </ul>
+    </div>
+    <div class="card" style="width: 18rem;">
+        <div class="card-body">
+            <button class="card-title" @onclick="() => CastVote(2)" disabled="@(!IsConnected)">2</button>
+        </div>
+        <ul class="list-group list-group-flush">
+            @foreach (var voter in voters)
+            {
+                <li class="list-group-item">@voter</li>
+            }
+        </ul>
+    </div>
+</div>
+
+@code {
+    private HubConnection? hubConnection;
+    private List<VoteResult> voters = [];
+    private string user = "Tom";
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/votehub"))
+            .Build();
+
+        hubConnection.On<string, int>("ReceiveVote", (user, vote) =>
+        {
+            var encodedMsg = $"{user}: {vote}";
+            voters.Add(encodedMsg);
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task CastVote(int vote)
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("Vote", user, vote);
+        }
+    }
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
