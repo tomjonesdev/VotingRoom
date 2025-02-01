@@ -16,6 +16,16 @@
 }
 else
 {
+    <div>
+        <h2>Participants</h2>
+        <ul>
+            @foreach (var voter in voters)
+            {
+                <li>@voter.Name</li>
+            }
+        </ul>
+    </div>
+
     <div class="card-group">
         @foreach (var item in voteItems)
         {
@@ -66,13 +76,19 @@ else
             InvokeAsync(StateHasChanged);
         });
 
+        hubConnection.On<Voter>("VoterJoin", (voter) =>
+        {
+            voters.Add(new() { Id = voter.Id, Name = voter.Name });
+            InvokeAsync(StateHasChanged);
+        });
+
         await hubConnection.StartAsync();
     }
 
-    void AddVoter()
+    async Task AddVoter()
     {
         voter.Id = voters.Count + 1;
-        voters.Add(voter);
+        await hubConnection.SendAsync("VoterJoin", voter);
     }
 
     async Task CastVote(int voteItemId)
