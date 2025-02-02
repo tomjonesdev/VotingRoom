@@ -4,6 +4,7 @@
 @using VotingRoom.Common.Enums
 @using VotingRoom.Common.Models
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
 
 <h3>@(RoomId == null ? "Create room": "Join room")</h3>
@@ -39,7 +40,7 @@ else if (voter.Id == 0)
 }
 else
 {
-    <p>Room URL: <a href="@Navigation.Uri">@Navigation.Uri</a></p>
+    <button @onclick=@(() => JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Navigation.Uri)) class="btn btn-primary">Copy room URL to clipboard</button>
     <div>
         <h2>Participants</h2>
         <ul>
