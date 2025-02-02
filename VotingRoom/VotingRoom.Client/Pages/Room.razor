@@ -48,7 +48,7 @@ else
         {
             <div class="card" style="width: 18rem;">
                 <div class="card-body">
-                    <button class="btn btn-success" @onclick="() => CastVote(item.Id)" disabled="@(!IsConnected && remainingVotes == 0)">@item.Name</button>
+                    <button class="btn btn-success" @onclick="() => CastVote(item.Id)" disabled="@(!IsConnected || remainingVotes == 0)">@item.Name</button>
                 </div>
                 <p>Total votes: @item.Votes</p>
                 <ul class="list-group list-group-flush">
