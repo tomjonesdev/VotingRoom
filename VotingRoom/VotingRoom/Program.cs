@@ -47,7 +47,7 @@ namespace VotingRoom
                 .AddInteractiveWebAssemblyRenderMode()
                 .AddAdditionalAssemblies(typeof(Client._Imports).Assembly);
 
-            app.MapHub<VoteHub>("/votehub");
+            app.MapHub<RoomHub>("/roomhub");
 
             app.Run();
         }

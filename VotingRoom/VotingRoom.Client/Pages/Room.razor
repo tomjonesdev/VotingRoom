@@ -1,0 +1,132 @@
+﻿@page "/{RoomId:guid?}"
+@rendermode InteractiveWebAssembly
+@using Microsoft.AspNetCore.SignalR.Client
+@using VotingRoom.Common.Enums
+@using VotingRoom.Common.Models
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<h3>@(RoomId == null ? "Create room": "Join room")</h3>
+
+@if (RoomId == null)
+{
+    <a href="@("/" + Guid.NewGuid())" class="btn btn-success">Create room</a>
+}
+else if (voter.Id == 0)
+{
+    <EditForm Model="voter" OnValidSubmit="JoinRoom">
+        <InputText @bind-Value="voter.Name" placeholder="Your name" />
+        <InputRadioGroup @bind-Value="voter.Type">
+            @foreach (var type in Enum.GetValues<VoterType>())
+            {
+                <div>
+                    <label>
+                        <InputRadio Value="type" />
+                        Join as a @type
+                    </label>
+                </div>
+            }
+        </InputRadioGroup>
+        <button class="btn btn-success">Join</button>
+    </EditForm>
+}
+else
+{
+    <p>Room URL: <a href="@Navigation.Uri">@Navigation.Uri</a></p>
+    <div>
+        <h2>Participants</h2>
+        <ul>
+            @foreach (var voter in voters)
+            {
+                <li>@voter.Name (@voter.Type)</li>
+            }
+        </ul>
+    </div>
+
+    <div class="card-group">
+        @foreach (var item in voteItems)
+        {
+            <div class="card" style="width: 18rem;">
+                <div class="card-body">
+                    <button class="btn btn-success" @onclick="() => CastVote(item.Id)" disabled="@(!IsConnected && remainingVotes == 0)">@item.Name</button>
+                </div>
+                <p>Total votes: @item.Votes</p>
+                <ul class="list-group list-group-flush">
+                    @foreach (var voter in item.Voters)
+                    {
+                        <li class="list-group-item">@voter.Name</li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? RoomId { get; set; }
+
+    Voter voter = new();
+    List<Voter> voters = [];
+    int remainingVotes = 1;
+
+    HubConnection? hubConnection;
+    List<VoteItem> voteItems =
+    [
+        new() { Id = 1, Name = "1" },
+        new() { Id = 2, Name = "2" },
+        new() { Id = 3, Name = "3" },
+        new() { Id = 4, Name = "5" },
+        new() { Id = 5, Name = "8" },
+        new() { Id = 6, Name = "13" },
+        new() { Id = 7, Name = "21" },
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/roomhub"))
+            .Build();
+
+        hubConnection.On<CastVoteResponse>("ReceiveVote", (vote) =>
+        {
+            var voteItem = voteItems.First(vi => vi.Id == vote.VoteItemId);
+            voteItem.Voters.Add(new() { Id = vote.VoterId, Name = vote.VoterName });
+
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<Voter>("JoinRoom", (newVoter) =>
+        {
+            voters.Add(newVoter);
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    async Task JoinRoom()
+    {
+        voter.Id = voters.Count + 1;
+        await hubConnection.SendAsync("JoinRoom", voter, RoomId);
+    }
+
+    async Task CastVote(int voteItemId)
+    {
+        if (hubConnection is not null && remainingVotes > 0)
+        {
+            await hubConnection.SendAsync("Vote", RoomId, voter, voteItemId);
+            remainingVotes--;
+        }
+    }
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

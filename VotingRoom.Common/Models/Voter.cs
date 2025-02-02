@@ -1,8 +1,8 @@
-﻿namespace VotingRoom.Common.Models;
+﻿using VotingRoom.Common.Enums;
 
-public class Voter
+namespace VotingRoom.Common.Models;
+
+public class Voter : Member
 {
-    public int Id { get; set; }
-
-    public string Name { get; set; } = string.Empty;
+    public VoterType Type { get; set; }
 }
