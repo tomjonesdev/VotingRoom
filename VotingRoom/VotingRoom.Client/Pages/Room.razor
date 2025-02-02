@@ -10,12 +10,19 @@
 
 @if (RoomId == null)
 {
-    <a href="@("/" + Guid.NewGuid())" class="btn btn-success">Create room</a>
+    <button @onclick="RedirectToNewRoom" class="btn btn-success">Create room</button>
 }
 else if (voter.Id == 0)
 {
     <EditForm Model="voter" OnValidSubmit="JoinRoom">
-        <InputText @bind-Value="voter.Name" placeholder="Your name" />
+        <DataAnnotationsValidator />
+
+        <label>
+            Name
+            <InputText @bind-Value="voter.Name" />
+            <ValidationMessage For="() => voter.Name" />
+        </label>
+
         <InputRadioGroup @bind-Value="voter.Type">
             @foreach (var type in Enum.GetValues<VoterType>())
             {
@@ -48,9 +55,9 @@ else
         {
             <div class="card" style="width: 18rem;">
                 <div class="card-body">
-                    <button class="btn btn-success" @onclick="() => CastVote(item.Id)" disabled="@(!IsConnected || remainingVotes == 0)">@item.Name</button>
+                    <p>Total votes: @item.Votes</p>
+                    <button class="btn btn-lg btn-success w-100" @onclick="() => CastVote(item.Id)" disabled="@(!IsConnected || remainingVotes == 0 || voter.Type == VoterType.Spectator)">@item.Name</button>
                 </div>
-                <p>Total votes: @item.Votes</p>
                 <ul class="list-group list-group-flush">
                     @foreach (var voter in item.Voters)
                     {
@@ -73,12 +80,12 @@ else
     List<VoteItem> voteItems =
     [
         new() { Id = 1, Name = "1" },
-        new() { Id = 2, Name = "2" },
-        new() { Id = 3, Name = "3" },
-        new() { Id = 4, Name = "5" },
-        new() { Id = 5, Name = "8" },
-        new() { Id = 6, Name = "13" },
-        new() { Id = 7, Name = "21" },
+    new() { Id = 2, Name = "2" },
+    new() { Id = 3, Name = "3" },
+    new() { Id = 4, Name = "5" },
+    new() { Id = 5, Name = "8" },
+    new() { Id = 6, Name = "13" },
+    new() { Id = 7, Name = "21" },
     ];
 
     protected override async Task OnInitializedAsync()
@@ -102,6 +109,11 @@ else
         });
 
         await hubConnection.StartAsync();
+    }
+
+    void RedirectToNewRoom()
+    {
+        Navigation.NavigateTo("/" + Guid.NewGuid());
     }
 
     async Task JoinRoom()
