@@ -7,7 +7,15 @@
 @inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
 
-<h3>@(RoomId == null ? "Create room": "Join room")</h3>
+<PageTitle>Voting Room</PageTitle>
+<h1>
+    @(RoomId == null
+        ? "Create room"
+        : (RoomId != null && voter.Id == 0)
+        ? "Join room"
+        : "Your room"
+        )
+</h1>
 
 @if (RoomId == null)
 {
@@ -35,20 +43,31 @@ else if (voter.Id == 0)
                 </div>
             }
         </InputRadioGroup>
+
+        <small>Participants can vote, spectators can't</small>
+        <br />
         <button class="btn btn-success">Join</button>
     </EditForm>
 }
 else
 {
-    <button @onclick=@(() => JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Navigation.Uri)) class="btn btn-primary">Copy room URL to clipboard</button>
-    <div>
-        <h2>Participants</h2>
-        <ul>
-            @foreach (var voter in voters)
-            {
-                <li>@voter.Name (@voter.Type)</li>
-            }
-        </ul>
+    <div class="room-description">
+        <div>
+            <h2>Story point voting</h2>
+            <p>Simple story point voting page, using the Fibonacci sequence as a way to ascertain a task's <strong>complexity</strong>.</p>
+
+            <button @onclick=@(() => JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Navigation.Uri)) class="btn btn-primary">Copy room URL to clipboard</button>
+        </div>
+
+        <div>
+            <h3>Participants</h3>
+            <ul>
+                @foreach (var voter in voters)
+                {
+                    <li class="text-nowrap">@voter.Name (@voter.Type)</li>
+                }
+            </ul>
+        </div>
     </div>
 
     <div class="card-group">
