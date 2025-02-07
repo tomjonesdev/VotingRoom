@@ -11,6 +11,7 @@ namespace VotingRoom
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddSignalR();
+            builder.Services.AddMemoryCache();
 
             builder.Services.AddResponseCompression(opts =>
             {

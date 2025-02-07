@@ -122,9 +122,9 @@ else
             InvokeAsync(StateHasChanged);
         });
 
-        hubConnection.On<Voter>("JoinRoom", (newVoter) =>
+        hubConnection.On<List<Voter>>("JoinRoom", (roomMembers) =>
         {
-            voters.Add(newVoter);
+            voters = roomMembers;
             InvokeAsync(StateHasChanged);
         });
 
