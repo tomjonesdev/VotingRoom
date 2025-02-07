@@ -7,7 +7,7 @@ public class RoomHub : Hub
 {
     public async Task Vote(string roomId, Voter voter, int voteItemId)
     {
-        await Clients.Group(roomId).SendAsync("ReceiveVote", new CastVoteResponse
+        await Clients.Group(roomId).SendAsync("Vote", new CastVoteResponse
         {
             VoterId = voter.Id,
             VoterName = voter.Name,

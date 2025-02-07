@@ -27,7 +27,7 @@ else if (voter.Id == 0)
         <DataAnnotationsValidator />
 
         <label>
-            Name
+            Your name
             <InputText @bind-Value="voter.Name" />
             <ValidationMessage For="() => voter.Name" />
         </label>
@@ -114,7 +114,7 @@ else
             .WithUrl(Navigation.ToAbsoluteUri("/roomhub"))
             .Build();
 
-        hubConnection.On<CastVoteResponse>("ReceiveVote", (vote) =>
+        hubConnection.On<CastVoteResponse>("Vote", (vote) =>
         {
             var voteItem = voteItems.First(vi => vi.Id == vote.VoteItemId);
             voteItem.Voters.Add(new() { Id = vote.VoterId, Name = vote.VoterName });
@@ -138,8 +138,10 @@ else
 
     async Task JoinRoom()
     {
-        voter.Id = voters.Count + 1;
-        await hubConnection.SendAsync("JoinRoom", voter, RoomId);
+        if (hubConnection is not null) {
+            voter.Id = voters.Count + 1;
+            await hubConnection.SendAsync("JoinRoom", voter, RoomId);
+        }
     }
 
     async Task CastVote(int voteItemId)
