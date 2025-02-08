@@ -11,7 +11,7 @@
 <h1>
     @(RoomId == null
         ? "Create room"
-        : (RoomId != null && voter.Id == 0)
+        : (RoomId != null && voter.Id is null)
         ? "Join room"
         : "Your room"
         )
@@ -21,7 +21,7 @@
 {
     <button @onclick="RedirectToNewRoom" class="btn btn-success">Create room</button>
 }
-else if (voter.Id == 0)
+else if (voter.Id is null)
 {
     <EditForm Model="voter" OnValidSubmit="JoinRoom">
         <DataAnnotationsValidator />
@@ -57,12 +57,17 @@ else
             <p>Simple story point voting page, using the Fibonacci sequence as a way to ascertain a task's <strong>complexity</strong>.</p>
 
             <button @onclick=@(() => JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Navigation.Uri)) class="btn btn-primary">Copy room URL to clipboard</button>
+
+            @if (voter.Id == room.AdminConnectionId)
+            {
+                <button @onclick="ResetVotes" class="btn btn-danger">Reset votes</button>
+            }
         </div>
 
         <div>
             <h3>Participants</h3>
             <ul>
-                @foreach (var voter in voters)
+                @foreach (var voter in room.Voters)
                 {
                     <li class="text-nowrap">@voter.Name (@voter.Type)</li>
                 }
@@ -92,8 +97,8 @@ else
 @code {
     [Parameter] public Guid? RoomId { get; set; }
 
+    Common.Models.Room? room;
     Voter voter = new();
-    List<Voter> voters = [];
     int remainingVotes = 1;
 
     HubConnection? hubConnection;
@@ -122,9 +127,22 @@ else
             InvokeAsync(StateHasChanged);
         });
 
-        hubConnection.On<List<Voter>>("JoinRoom", (roomMembers) =>
+        hubConnection.On<string>("SetVoterId", (voterId) =>
         {
-            voters = roomMembers;
+            voter.Id = voterId;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<Common.Models.Room>("JoinRoom", (cachedRoom) =>
+        {
+            room = cachedRoom;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On("ResetVotes", () =>
+        {
+            voteItems.ForEach(vi => vi.Voters.Clear());
+            remainingVotes = 1;
             InvokeAsync(StateHasChanged);
         });
 
@@ -138,8 +156,8 @@ else
 
     async Task JoinRoom()
     {
-        if (hubConnection is not null) {
-            voter.Id = voters.Count + 1;
+        if (hubConnection is not null)
+        {
             await hubConnection.SendAsync("JoinRoom", voter, RoomId);
         }
     }
@@ -150,6 +168,14 @@ else
         {
             await hubConnection.SendAsync("Vote", RoomId, voter, voteItemId);
             remainingVotes--;
+        }
+    }
+
+    async Task ResetVotes()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("ResetVotes", RoomId);
         }
     }
 

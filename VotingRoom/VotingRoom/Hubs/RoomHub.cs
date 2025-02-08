@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
 using VotingRoom.Common.Models;
-using VotingRoom.Models;
 
 namespace VotingRoom.Hubs;
 
@@ -11,7 +10,7 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
     {
         await Clients.Group(roomId).SendAsync("Vote", new CastVoteResponse
         {
-            VoterId = voter.Id,
+            VoterId = voter.Id!,
             VoterName = voter.Name,
             VoteItemId = voteItemId,
         });
@@ -19,16 +18,22 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
 
     public async Task JoinRoom(Voter voter, string roomId)
     {
+        voter.Id = Context.ConnectionId;
+
         var cacheKey = "room:" + roomId;
         var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);
 
         if (cached)
         {
-            room?.Members.Add(voter);
+            room?.Voters.Add(voter);
         }
         else
         {
-            room = new Room { Members = [voter] };
+            room = new Room
+            {
+                AdminConnectionId = voter.Id,
+                Voters = [voter],
+            };
         }
 
         memoryCache.Set(cacheKey, room, new MemoryCacheEntryOptions
@@ -40,7 +45,19 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
             SlidingExpiration = TimeSpan.FromMinutes(60),
         });
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
-        await Clients.Group(roomId).SendAsync("JoinRoom", room?.Members);
+        await Groups.AddToGroupAsync(voter.Id, roomId);
+        await Clients.Group(roomId).SendAsync("JoinRoom", room);
+        await Clients.Client(voter.Id).SendAsync("SetVoterId", voter.Id);
+    }
+
+    public async Task ResetVotes(string roomId)
+    {
+        var cacheKey = "room:" + roomId;
+        var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);
+
+        if (!cached || Context.ConnectionId == room?.AdminConnectionId)
+        {
+            await Clients.Group(roomId).SendAsync("ResetVotes");
+        }
     }
 }

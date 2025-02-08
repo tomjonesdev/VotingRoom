@@ -2,7 +2,7 @@
 
 public class CastVoteResponse
 {
-    public required int VoterId { get; set; }
+    public required string VoterId { get; set; }
 
     public required string VoterName { get; set; }
 
