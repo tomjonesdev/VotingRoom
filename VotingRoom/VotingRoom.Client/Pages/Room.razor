@@ -10,10 +10,10 @@
 <PageTitle>Voting Room</PageTitle>
 <h1>
     @(RoomId == null
-        ? "Create room"
-        : (RoomId != null && voter.Id is null)
-        ? "Join room"
-        : "Your room"
+            ? "Create room"
+            : (RoomId != null && voter.Id is null)
+                ? "Join room"
+                : "Your room"
         )
 </h1>
 
@@ -61,6 +61,7 @@ else
             @if (voter.Id == room.AdminConnectionId)
             {
                 <button @onclick="ResetVotes" class="btn btn-danger">Reset votes</button>
+                <button @onclick="RevealVotes" class="btn btn-success">Reveal votes</button>
             }
         </div>
 
@@ -80,13 +81,16 @@ else
         {
             <div class="card" style="width: 18rem;">
                 <div class="card-body">
-                    <p>Total votes: @item.Votes</p>
+                    <p>Total votes: @(room.ShowVotes ? item.Votes : "(hidden)")</p>
                     <button class="btn btn-lg btn-success w-100" @onclick="() => CastVote(item.Id)" disabled="@(!IsConnected || remainingVotes == 0 || voter.Type == VoterType.Spectator)">@item.Name</button>
                 </div>
                 <ul class="list-group list-group-flush">
-                    @foreach (var voter in item.Voters)
+                    @if (room.ShowVotes)
                     {
-                        <li class="list-group-item">@voter.Name</li>
+                        foreach (var voter in item.Voters)
+                        {
+                            <li class="list-group-item">@voter.Name</li>
+                        }
                     }
                 </ul>
             </div>
@@ -103,7 +107,7 @@ else
 
     HubConnection? hubConnection;
     List<VoteItem> voteItems =
-    [
+        [
         new() { Id = 1, Name = "1" },
     new() { Id = 2, Name = "2" },
     new() { Id = 3, Name = "3" },
@@ -143,6 +147,13 @@ else
         {
             voteItems.ForEach(vi => vi.Voters.Clear());
             remainingVotes = 1;
+            room.ShowVotes = false;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On("RevealVotes", () =>
+        {
+            room.ShowVotes = true;
             InvokeAsync(StateHasChanged);
         });
 
@@ -176,6 +187,14 @@ else
         if (hubConnection is not null)
         {
             await hubConnection.SendAsync("ResetVotes", RoomId);
+        }
+    }
+
+    async Task RevealVotes()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("RevealVotes", RoomId);
         }
     }
 

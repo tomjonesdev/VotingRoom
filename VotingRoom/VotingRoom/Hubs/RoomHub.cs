@@ -60,4 +60,15 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
             await Clients.Group(roomId).SendAsync("ResetVotes");
         }
     }
+
+    public async Task RevealVotes(string roomId)
+    {
+        var cacheKey = "room:" + roomId;
+        var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);
+
+        if (!cached || Context.ConnectionId == room?.AdminConnectionId)
+        {
+            await Clients.Group(roomId).SendAsync("RevealVotes");
+        }
+    }
 }
