@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Amazon.AppSync;
+using Amazon.AppSync.Model;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
 using VotingRoom.Common.Models;
 
@@ -19,6 +21,15 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
     public async Task JoinRoom(Voter voter, string roomId)
     {
         voter.Id = Context.ConnectionId;
+
+        var client = new AmazonAppSyncClient(
+            "access-key",
+            "secret-key");
+
+        client.AssociateApiAsync(new AssociateApiRequest
+        {
+
+        });
 
         var cacheKey = "room:" + roomId;
         var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);

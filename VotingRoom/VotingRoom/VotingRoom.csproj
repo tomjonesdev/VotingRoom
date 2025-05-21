@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\VotingRoom.Client\VotingRoom.Client.csproj" />
+    <PackageReference Include="AWSSDK.AppSync" Version="4.0.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.1" />
   </ItemGroup>
 
