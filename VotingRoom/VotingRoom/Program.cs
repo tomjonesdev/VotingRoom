@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.ResponseCompression;
+using VotingRoom.Client.Services;
 using VotingRoom.Components;
 using VotingRoom.Hubs;
 
@@ -20,8 +21,11 @@ namespace VotingRoom
             });
 
             // Add services to the container.
-            builder.Services.AddRazorComponents()
+            builder.Services
+                .AddRazorComponents()
                 .AddInteractiveWebAssemblyComponents();
+
+            builder.Services.AddScoped<IVotingService, VotingService>();
 
             var app = builder.Build();
 

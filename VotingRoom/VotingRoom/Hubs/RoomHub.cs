@@ -6,14 +6,9 @@ namespace VotingRoom.Hubs;
 
 public class RoomHub(IMemoryCache memoryCache) : Hub
 {
-    public async Task Vote(string roomId, Voter voter, int voteItemId)
+    public async Task SendVote(Vote vote)
     {
-        await Clients.Group(roomId).SendAsync("Vote", new CastVoteResponse
-        {
-            VoterId = voter.Id!,
-            VoterName = voter.Name,
-            VoteItemId = voteItemId,
-        });
+        await Clients.Group(vote.RoomId.ToString()).SendAsync("ReceiveVote", vote);
     }
 
     public async Task JoinRoom(Voter voter, string roomId)
@@ -34,6 +29,8 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
                 AdminConnectionId = voter.Id,
                 Voters = [voter],
             };
+
+            voter.IsAdmin = true;
         }
 
         memoryCache.Set(cacheKey, room, new MemoryCacheEntryOptions
@@ -46,19 +43,16 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
         });
 
         await Groups.AddToGroupAsync(voter.Id, roomId);
-        await Clients.Group(roomId).SendAsync("JoinRoom", room);
-        await Clients.Client(voter.Id).SendAsync("SetVoterId", voter.Id);
+        await Clients.Group(roomId).SendAsync("UserJoined", room);
+        await Clients.Client(voter.Id).SendAsync("UpdateUser", voter);
     }
 
-    public async Task ResetVotes(string roomId)
+    public async Task LeaveRoom(Guid roomId, string voterId)
     {
-        var cacheKey = "room:" + roomId;
-        var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);
+        await Groups.RemoveFromGroupAsync(voterId, roomId.ToString());
+        await Clients.Group(roomId.ToString()).SendAsync("LeaveRoom", voterId);
 
-        if (!cached || Context.ConnectionId == room?.AdminConnectionId)
-        {
-            await Clients.Group(roomId).SendAsync("ResetVotes");
-        }
+        // TODO: If the user is admin, pass the admin role to another user
     }
 
     public async Task RevealVotes(string roomId)
@@ -69,6 +63,17 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
         if (!cached || Context.ConnectionId == room?.AdminConnectionId)
         {
             await Clients.Group(roomId).SendAsync("RevealVotes");
+        }
+    }
+
+    public async Task ResetVotes(string roomId)
+    {
+        var cacheKey = "room:" + roomId;
+        var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);
+
+        if (!cached || Context.ConnectionId == room?.AdminConnectionId)
+        {
+            await Clients.Group(roomId).SendAsync("ResetVotes");
         }
     }
 }

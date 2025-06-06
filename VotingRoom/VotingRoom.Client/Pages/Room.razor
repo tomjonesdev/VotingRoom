@@ -1,19 +1,21 @@
 ﻿@page "/{RoomId:guid?}"
 @rendermode InteractiveWebAssembly
 @using Microsoft.AspNetCore.SignalR.Client
+@using VotingRoom.Client.Services
 @using VotingRoom.Common.Enums
 @using VotingRoom.Common.Models
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject IVotingService VotingService
 @implements IAsyncDisposable
 
 <PageTitle>Voting Room</PageTitle>
 <h1>
     @(RoomId == null
-            ? "Create room"
-            : (RoomId != null && voter.Id is null)
-                ? "Join room"
-                : "Your room"
+        ? "Create room"
+        : (RoomId != null && voter.Id is null)
+        ? "Join room"
+        : "Your room"
         )
 </h1>
 
@@ -58,10 +60,10 @@ else
 
             <button @onclick=@(() => JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Navigation.Uri)) class="btn btn-primary">Copy room URL to clipboard</button>
 
-            @if (voter.Id == room.AdminConnectionId)
+            @if (voter.IsAdmin)
             {
-                <button @onclick="ResetVotes" class="btn btn-danger">Reset votes</button>
-                <button @onclick="RevealVotes" class="btn btn-success">Reveal votes</button>
+                <button @onclick="() => VotingService.RevealVotes(RoomId.Value)" class="btn btn-success">Reveal votes</button>
+                <button @onclick="() => VotingService.ResetVotes(RoomId.Value)" class="btn btn-danger">Reset votes</button>
             }
         </div>
 
@@ -81,8 +83,8 @@ else
         {
             <div class="card" style="width: 18rem;">
                 <div class="card-body">
-                    <p>Total votes: @(room.ShowVotes ? item.Votes : "(hidden)")</p>
-                    <button class="btn btn-lg btn-success w-100" @onclick="() => CastVote(item.Id)" disabled="@(!IsConnected || remainingVotes == 0 || voter.Type == VoterType.Spectator)">@item.Name</button>
+                    <p>Total votes: @(room.ShowVotes? item.Votes: "(hidden)")</p>
+                    <button class="btn btn-lg btn-success w-100" @onclick="() => CastVote(item)" disabled="@(remainingVotes == 0 || voter.Type == VoterType.Spectator)">@item.Name</button>
                 </div>
                 <ul class="list-group list-group-flush">
                     @if (room.ShowVotes)
@@ -105,7 +107,6 @@ else
     Voter voter = new();
     int remainingVotes = 1;
 
-    HubConnection? hubConnection;
     List<VoteItem> voteItems =
         [
         new() { Id = 1, Name = "1" },
@@ -119,45 +120,17 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/roomhub"))
-            .Build();
-
-        hubConnection.On<CastVoteResponse>("Vote", (vote) =>
+        if (RoomId is not null)
         {
-            var voteItem = voteItems.First(vi => vi.Id == vote.VoteItemId);
-            voteItem.Voters.Add(new() { Id = vote.VoterId, Name = vote.VoterName });
+            var roomId = RoomId.ToString();
+            await VotingService.Connect(roomId);
+        }
 
-            InvokeAsync(StateHasChanged);
-        });
-
-        hubConnection.On<string>("SetVoterId", (voterId) =>
-        {
-            voter.Id = voterId;
-            InvokeAsync(StateHasChanged);
-        });
-
-        hubConnection.On<Common.Models.Room>("JoinRoom", (cachedRoom) =>
-        {
-            room = cachedRoom;
-            InvokeAsync(StateHasChanged);
-        });
-
-        hubConnection.On("ResetVotes", () =>
-        {
-            voteItems.ForEach(vi => vi.Voters.Clear());
-            remainingVotes = 1;
-            room.ShowVotes = false;
-            InvokeAsync(StateHasChanged);
-        });
-
-        hubConnection.On("RevealVotes", () =>
-        {
-            room.ShowVotes = true;
-            InvokeAsync(StateHasChanged);
-        });
-
-        await hubConnection.StartAsync();
+        VotingService.OnUserJoined += HandleVoterJoined;
+        VotingService.OnUpdateCurrentUser += HandleUpdateCurrentUser;
+        VotingService.OnVoteReceived += HandleVoteReceived;
+        VotingService.OnRevealVotes += HandleRevealVotes;
+        VotingService.OnResetVotes += HandleResetVotes;
     }
 
     void RedirectToNewRoom()
@@ -167,45 +140,79 @@ else
 
     async Task JoinRoom()
     {
-        if (hubConnection is not null)
-        {
-            await hubConnection.SendAsync("JoinRoom", voter, RoomId);
-        }
+        await VotingService.JoinRoom(voter, RoomId.Value);
     }
 
-    async Task CastVote(int voteItemId)
+    async Task CastVote(VoteItem voteItem)
     {
-        if (hubConnection is not null && remainingVotes > 0)
+        if (remainingVotes > 0)
         {
-            await hubConnection.SendAsync("Vote", RoomId, voter, voteItemId);
+            var vote = new Vote
+            {
+                Choice = voteItem,
+                Voter = voter,
+                RoomId = RoomId.Value,
+            };
+
+            await VotingService.SendVote(vote);
             remainingVotes--;
         }
     }
 
-    async Task ResetVotes()
+    private void HandleVoterJoined(Common.Models.Room cachedRoom)
     {
-        if (hubConnection is not null)
+        InvokeAsync(() =>
         {
-            await hubConnection.SendAsync("ResetVotes", RoomId);
-        }
+            room = cachedRoom;
+            StateHasChanged();
+        });
     }
 
-    async Task RevealVotes()
+    private void HandleUpdateCurrentUser(Voter updatedVoter)
     {
-        if (hubConnection is not null)
+        InvokeAsync(() =>
         {
-            await hubConnection.SendAsync("RevealVotes", RoomId);
-        }
+            voter = updatedVoter;
+            StateHasChanged();
+        });
     }
 
-    public bool IsConnected =>
-        hubConnection?.State == HubConnectionState.Connected;
+    private void HandleVoteReceived(Vote vote)
+    {
+        InvokeAsync(() =>
+        {
+            var voteItem = voteItems.First(vi => vi.Id == vote.Choice.Id);
+            voteItem.Voters.Add(new() { Id = vote.Voter.Id, Name = vote.Voter.Name });
+            StateHasChanged();
+        });
+    }
+
+    private void HandleRevealVotes()
+    {
+        InvokeAsync(() =>
+        {
+            room.ShowVotes = true;
+            StateHasChanged();
+        });
+    }
+
+    private void HandleResetVotes()
+    {
+        InvokeAsync(() =>
+        {
+            voteItems.ForEach(vi => vi.Voters.Clear());
+            remainingVotes = 1;
+            room.ShowVotes = false;
+            StateHasChanged();
+        });
+    }
 
     public async ValueTask DisposeAsync()
     {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
-        }
+        VotingService.OnUserJoined -= HandleVoterJoined;
+        VotingService.OnVoteReceived -= HandleVoteReceived;
+        VotingService.OnUpdateCurrentUser -= HandleUpdateCurrentUser;
+        VotingService.OnRevealVotes -= HandleRevealVotes;
+        VotingService.OnResetVotes -= HandleResetVotes;
     }
 }
