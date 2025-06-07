@@ -1,0 +1,68 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@using VotingRoom.Common.Enums
+@using VotingRoom.Common.Models
+@inject NavigationManager Navigation
+
+<div class="card-group">
+    @foreach (var item in VoteItems)
+    {
+        <div class="card" style="width: 18rem;">
+            <div class="card-body">
+                <p>Total votes: @(Room.ShowVotes? item.Votes: "(hidden)")</p>
+                <button class="btn btn-lg btn-success w-100" @onclick="() => CastVote(item.Id)" disabled="@(!IsConnected || Voter.RemainingVotes == 0 || Voter.Type == VoterType.Spectator)">@item.Name</button>
+            </div>
+            <ul class="list-group list-group-flush">
+                @if (Room.ShowVotes)
+                {
+                    foreach (var voter in item.Voters)
+                    {
+                        <li class="list-group-item">@voter.Name</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required List<VoteItem> VoteItems { get; set; }
+    [Parameter] public required Room Room { get; set; }
+    [Parameter] public required Voter Voter { get; set; }
+
+    HubConnection? hubConnection;
+
+    protected override void OnInitialized()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/roomhub"))
+            .Build();
+
+        hubConnection.On<CastVoteResponse>("Vote", (voteResponse) =>
+        {
+            var voteItem = VoteItems.First(vi => vi.Id == voteResponse.VoteItemId);
+            voteItem.Voters.Add(new() { Id = voteResponse.VoterId, Name = voteResponse.VoterName });
+            Voter.RemainingVotes = voteResponse.VoterRemainingVotes;
+
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    async Task CastVote(int voteItemId)
+    {
+        if (hubConnection is not null && Voter.RemainingVotes > 0)
+        {
+            await hubConnection.SendAsync("Vote", Room.Id, Voter, voteItemId);
+        }
+    }
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

@@ -26,6 +26,7 @@ namespace VotingRoom
                 .AddInteractiveWebAssemblyComponents();
 
             builder.Services.AddScoped<IVotingService, VotingService>();
+            builder.Services.AddScoped<ClientStateProvider>();
 
             var app = builder.Build();
 

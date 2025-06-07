@@ -7,4 +7,6 @@ public class CastVoteResponse
     public required string VoterName { get; set; }
 
     public required int VoteItemId { get; set; }
+
+    public required int VoterRemainingVotes { get; set; }
 }

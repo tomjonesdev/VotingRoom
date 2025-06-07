@@ -1,4 +1,4 @@
-﻿@page "/{RoomId:guid?}"
+﻿@page "/{RoomId:guid}"
 @rendermode InteractiveWebAssembly
 @using Microsoft.AspNetCore.SignalR.Client
 @using VotingRoom.Client.Services
@@ -7,25 +7,17 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject IVotingService VotingService
+@inject ClientStateProvider ClientState
 @implements IAsyncDisposable
 
 <PageTitle>Voting Room</PageTitle>
-<h1>
-    @(RoomId == null
-        ? "Create room"
-        : (RoomId != null && voter.Id is null)
-        ? "Join room"
-        : "Your room"
-        )
-</h1>
 
-@if (RoomId == null)
+@* room name doesn't appear until other user joins *@
+<h1>@room.Name</h1>
+
+@if (ClientState.CurrentUser is null)
 {
-    <button @onclick="RedirectToNewRoom" class="btn btn-success">Create room</button>
-}
-else if (voter.Id is null)
-{
-    <EditForm Model="voter" OnValidSubmit="JoinRoom">
+    <EditForm Model="voter" OnValidSubmit="JoinRoom" FormName="JoinRoom">
         <DataAnnotationsValidator />
 
         <label>
@@ -33,6 +25,8 @@ else if (voter.Id is null)
             <InputText @bind-Value="voter.Name" />
             <ValidationMessage For="() => voter.Name" />
         </label>
+
+        <br />
 
         <InputRadioGroup @bind-Value="voter.Type">
             @foreach (var type in Enum.GetValues<VoterType>())
@@ -62,50 +56,34 @@ else
 
             @if (voter.IsAdmin)
             {
-                <button @onclick="() => VotingService.RevealVotes(RoomId.Value)" class="btn btn-success">Reveal votes</button>
-                <button @onclick="() => VotingService.ResetVotes(RoomId.Value)" class="btn btn-danger">Reset votes</button>
+                <button @onclick="() => VotingService.RevealVotes(RoomId)" class="btn btn-success">Reveal votes</button>
+                <button @onclick="() => VotingService.ResetVotes(RoomId)" class="btn btn-danger">Reset votes</button>
             }
         </div>
 
         <div>
             <h3>Participants</h3>
+            @if (voter.Type == VoterType.Participant)
+            {
+                <p>You have @voter.RemainingVotes/@room.MaxVotes votes remaining</p>
+            }
             <ul>
                 @foreach (var voter in room.Voters)
                 {
-                    <li class="text-nowrap">@voter.Name (@voter.Type)</li>
+                    <li class="text-nowrap">@voter.Name (@voter.Type) @(voter.RemainingVotes == 0 ? "✅" : "❌")</li>
                 }
             </ul>
         </div>
     </div>
 
-    <div class="card-group">
-        @foreach (var item in voteItems)
-        {
-            <div class="card" style="width: 18rem;">
-                <div class="card-body">
-                    <p>Total votes: @(room.ShowVotes? item.Votes: "(hidden)")</p>
-                    <button class="btn btn-lg btn-success w-100" @onclick="() => CastVote(item)" disabled="@(remainingVotes == 0 || voter.Type == VoterType.Spectator)">@item.Name</button>
-                </div>
-                <ul class="list-group list-group-flush">
-                    @if (room.ShowVotes)
-                    {
-                        foreach (var voter in item.Voters)
-                        {
-                            <li class="list-group-item">@voter.Name</li>
-                        }
-                    }
-                </ul>
-            </div>
-        }
-    </div>
+    <VoteCards VoteItems="voteItems" Room="room" Voter="voter" />
 }
 
 @code {
-    [Parameter] public Guid? RoomId { get; set; }
+    [Parameter] public Guid RoomId { get; set; }
 
-    Common.Models.Room? room;
+    Common.Models.Room room = new();
     Voter voter = new();
-    int remainingVotes = 1;
 
     List<VoteItem> voteItems =
         [
@@ -120,47 +98,43 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (RoomId is not null)
-        {
-            var roomId = RoomId.ToString();
-            await VotingService.Connect(roomId);
-        }
+        var roomId = RoomId.ToString();
+        await VotingService.Connect();
 
-        VotingService.OnUserJoined += HandleVoterJoined;
+        VotingService.OnUserJoined += HandleUserJoined;
         VotingService.OnUpdateCurrentUser += HandleUpdateCurrentUser;
         VotingService.OnVoteReceived += HandleVoteReceived;
         VotingService.OnRevealVotes += HandleRevealVotes;
         VotingService.OnResetVotes += HandleResetVotes;
     }
 
-    void RedirectToNewRoom()
-    {
-        Navigation.NavigateTo("/" + Guid.NewGuid());
-    }
-
     async Task JoinRoom()
     {
-        await VotingService.JoinRoom(voter, RoomId.Value);
+        await VotingService.JoinRoom(voter, RoomId);
     }
 
     async Task CastVote(VoteItem voteItem)
     {
-        if (remainingVotes > 0)
+        if (voter.RemainingVotes > 0)
         {
             var vote = new Vote
             {
                 Choice = voteItem,
                 Voter = voter,
-                RoomId = RoomId.Value,
+                RoomId = RoomId,
             };
 
             await VotingService.SendVote(vote);
-            remainingVotes--;
+            voter.RemainingVotes--; // move this into hub logic
         }
     }
 
-    private void HandleVoterJoined(Common.Models.Room cachedRoom)
+    private void HandleUserJoined(Common.Models.Room cachedRoom)
     {
+        // this isnt being triggered after create room redirection
+        // second user isn't being shown the voting view (but is added to the initial user's list)
+        // vote count is always 0
+
         InvokeAsync(() =>
         {
             room = cachedRoom;
@@ -201,7 +175,7 @@ else
         InvokeAsync(() =>
         {
             voteItems.ForEach(vi => vi.Voters.Clear());
-            remainingVotes = 1;
+            voter.RemainingVotes = room.MaxVotes;
             room.ShowVotes = false;
             StateHasChanged();
         });
@@ -209,7 +183,7 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        VotingService.OnUserJoined -= HandleVoterJoined;
+        VotingService.OnUserJoined -= HandleUserJoined;
         VotingService.OnVoteReceived -= HandleVoteReceived;
         VotingService.OnUpdateCurrentUser -= HandleUpdateCurrentUser;
         VotingService.OnRevealVotes -= HandleRevealVotes;
