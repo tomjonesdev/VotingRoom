@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using MudBlazor.Services;
 using VotingRoom.Client.Services;
 
 namespace VotingRoom.Client
@@ -11,6 +12,8 @@ namespace VotingRoom.Client
 
             builder.Services.AddScoped<IVotingService, VotingService>();
             builder.Services.AddSingleton<ClientStateProvider>();
+
+            builder.Services.AddMudServices();
 
             await builder.Build().RunAsync();
         }

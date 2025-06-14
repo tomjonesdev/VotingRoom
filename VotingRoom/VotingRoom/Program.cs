@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.ResponseCompression;
+using MudBlazor.Services;
 using VotingRoom.Client.Services;
 using VotingRoom.Components;
 using VotingRoom.Hubs;
@@ -24,6 +25,8 @@ namespace VotingRoom
             builder.Services
                 .AddRazorComponents()
                 .AddInteractiveWebAssemblyComponents();
+
+            builder.Services.AddMudServices();
 
             builder.Services.AddScoped<IVotingService, VotingService>();
             builder.Services.AddScoped<ClientStateProvider>();
