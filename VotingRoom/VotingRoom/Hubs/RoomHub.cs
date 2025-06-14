@@ -6,32 +6,27 @@ namespace VotingRoom.Hubs;
 
 public class RoomHub(IMemoryCache memoryCache) : Hub
 {
-    public async Task SendVote(Vote vote)
+    public async Task CreateRoom(RoomCreateRequest request)
     {
-        await Clients.Group(vote.RoomId.ToString()).SendAsync("ReceiveVote", vote);
-    }
-
-    public async Task JoinRoom(Voter voter, string roomId)
-    {
-        voter.Id = Context.ConnectionId;
-
-        var cacheKey = "room:" + roomId;
-        var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);
-
-        if (cached)
+        var initialUser = new Voter
         {
-            room?.Voters.Add(voter);
-        }
-        else
-        {
-            room = new Room
-            {
-                AdminConnectionId = voter.Id,
-                Voters = [voter],
-            };
+            Id = Context.ConnectionId,
+            Name = request.AdminName,
+            Type = request.AdminVoterType,
+            RemainingVotes = request.MaxVotes,
+            IsAdmin = true,
+        };
 
-            voter.IsAdmin = true;
-        }
+        var room = new Room
+        {
+            Id = Guid.NewGuid(),
+            Name = string.IsNullOrWhiteSpace(request.RoomName) ? "Your room" : request.RoomName,
+            AdminConnectionId = initialUser.Id,
+            Voters = [initialUser],
+            MaxVotes = request.MaxVotes,
+        };
+
+        var cacheKey = "room:" + room.Id;
 
         memoryCache.Set(cacheKey, room, new MemoryCacheEntryOptions
         {
@@ -42,38 +37,83 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
             SlidingExpiration = TimeSpan.FromMinutes(60),
         });
 
-        await Groups.AddToGroupAsync(voter.Id, roomId);
-        await Clients.Group(roomId).SendAsync("UserJoined", room);
-        await Clients.Client(voter.Id).SendAsync("UpdateUser", voter);
+        await Groups.AddToGroupAsync(initialUser.Id, room.Id.ToString());
+        await Clients.Client(initialUser.Id).SendAsync("CreateRoom", room, initialUser);
     }
 
-    public async Task LeaveRoom(Guid roomId, string voterId)
+    public async Task JoinRoom(
+        Voter newUser,
+        string roomId)
     {
-        await Groups.RemoveFromGroupAsync(voterId, roomId.ToString());
-        await Clients.Group(roomId.ToString()).SendAsync("LeaveRoom", voterId);
+        var cacheKey = "room:" + roomId;
+        var room = GetRoom(roomId);
 
-        // TODO: If the user is admin, pass the admin role to another user
+        newUser.Id = Context.ConnectionId;
+        newUser.RemainingVotes = room.MaxVotes;
+        room?.Voters.Add(newUser);
+
+        memoryCache.Set(cacheKey, room);
+
+        await Groups.AddToGroupAsync(newUser.Id, roomId);
+        await Clients.Group(roomId).SendAsync("UserJoined", newUser);
+        await Clients.Client(newUser.Id).SendAsync("UpdateCurrentUser", room, newUser);
+    }
+
+    public async Task SendVote(Vote vote)
+    {
+        var room = GetRoom(vote.RoomId.ToString());
+        room.VoteItems.First(vi => vi.Id == vote.Choice.Id).Voters.Add(vote.Voter);
+        room.Voters.First(vi => vi.Id == vote.Voter.Id).RemainingVotes--;
+
+        var cacheKey = "room:" + vote.RoomId;
+        var cachedVoter = room.Voters.FirstOrDefault(v => v.Id == vote.Voter.Id);
+
+        memoryCache.Set(cacheKey, room);
+
+        await Clients.Group(vote.RoomId.ToString()).SendAsync("ReceiveVote", vote);
     }
 
     public async Task RevealVotes(string roomId)
     {
-        var cacheKey = "room:" + roomId;
-        var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);
+        var room = GetRoom(roomId);
 
-        if (!cached || Context.ConnectionId == room?.AdminConnectionId)
+        if (room is not null && Context.ConnectionId == room?.AdminConnectionId)
         {
+            room.ShowVotes = true;
+
+            var cacheKey = "room:" + roomId;
+            memoryCache.Set(cacheKey, room);
+
             await Clients.Group(roomId).SendAsync("RevealVotes");
         }
     }
 
     public async Task ResetVotes(string roomId)
     {
+        var room = GetRoom(roomId);
+
+        if (room is not null && Context.ConnectionId == room?.AdminConnectionId)
+        {
+            room.VoteItems.ForEach(vi => vi.Voters.Clear());
+            room.Voters.ForEach(v => v.RemainingVotes = room.MaxVotes);
+
+            var cacheKey = "room:" + roomId;
+            memoryCache.Set(cacheKey, room);
+
+            await Clients.Group(roomId).SendAsync("ResetVotes");
+        }
+    }
+
+    private Room GetRoom(string roomId)
+    {
         var cacheKey = "room:" + roomId;
         var cached = memoryCache.TryGetValue<Room>(cacheKey, out var room);
 
-        if (!cached || Context.ConnectionId == room?.AdminConnectionId)
+        if (!cached || room is null)
         {
-            await Clients.Group(roomId).SendAsync("ResetVotes");
+            throw new Exception("Room not found");
         }
+
+        return room;
     }
 }

@@ -26,6 +26,7 @@ namespace VotingRoom
                 .AddInteractiveWebAssemblyComponents();
 
             builder.Services.AddScoped<IVotingService, VotingService>();
+            builder.Services.AddScoped<ClientStateProvider>();
 
             var app = builder.Build();
 
@@ -52,7 +53,7 @@ namespace VotingRoom
                 .AddInteractiveWebAssemblyRenderMode()
                 .AddAdditionalAssemblies(typeof(Client._Imports).Assembly);
 
-            app.MapHub<RoomHub>("/roomhub");
+            app.MapHub<RoomHub>("/roomHub");
 
             app.Run();
         }

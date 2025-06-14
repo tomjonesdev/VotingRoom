@@ -7,15 +7,15 @@ namespace VotingRoom.Client.Services;
 public class VotingService(NavigationManager navigationManager) : IVotingService
 {
     private HubConnection _hubConnection;
-
+    public event Action<Room, Voter>? OnRoomCreated;
+    public event Action<Voter>? OnUserJoined;
+    public event Action<Room, Voter>? OnUpdateCurrentUser;
     public event Action<Vote>? OnVoteReceived;
-    public event Action<Room>? OnUserJoined;
-    public event Action<Voter>? OnUpdateCurrentUser;
-    public event Action<string>? OnUserLeft;
     public event Action? OnRevealVotes;
     public event Action? OnResetVotes;
+    public event Action<string>? OnUserLeft;
 
-    public async Task Connect(string roomId)
+    public async Task Connect()
     {
         if (_hubConnection != null &&
             _hubConnection.State == HubConnectionState.Connected)
@@ -28,15 +28,20 @@ public class VotingService(NavigationManager navigationManager) : IVotingService
             .WithAutomaticReconnect()
             .Build();
 
-        // Register incoming SignalR event handlers
+        _hubConnection.On<Room, Voter>("CreateRoom", (room, initialUser) => OnRoomCreated?.Invoke(room, initialUser));
+        _hubConnection.On<Voter>("UserJoined", (voter) => OnUserJoined?.Invoke(voter));
+        _hubConnection.On<Room, Voter>("UpdateCurrentUser", (room, voter) => OnUpdateCurrentUser?.Invoke(room, voter));
         _hubConnection.On<Vote>("ReceiveVote", vote => OnVoteReceived?.Invoke(vote));
-        _hubConnection.On<Room>("UserJoined", (room) => OnUserJoined?.Invoke(room));
-        _hubConnection.On<Voter>("UpdateUser", (voter) => OnUpdateCurrentUser?.Invoke(voter));
-        _hubConnection.On<string>("UserLeft", name => OnUserLeft?.Invoke(name));
         _hubConnection.On("RevealVotes", () => OnRevealVotes?.Invoke());
         _hubConnection.On("ResetVotes", () => OnResetVotes?.Invoke());
+        _hubConnection.On<string>("UserLeft", name => OnUserLeft?.Invoke(name));
 
         await _hubConnection.StartAsync();
+    }
+
+    public async Task CreateRoom(RoomCreateRequest request)
+    {
+        await _hubConnection.InvokeAsync("CreateRoom", request);
     }
 
     public async Task JoinRoom(
@@ -68,16 +73,5 @@ public class VotingService(NavigationManager navigationManager) : IVotingService
         {
             await _hubConnection.InvokeAsync("ResetVotes", roomId);
         }
-    }
-
-    public async Task LeaveRoom(Guid roomId, string voterId)
-    {
-        await _hubConnection.InvokeAsync("LeaveRoom", roomId, voterId);
-    }
-
-    public async Task Disconnect()
-    {
-        if (_hubConnection != null)
-            await _hubConnection.StopAsync();
     }
 }

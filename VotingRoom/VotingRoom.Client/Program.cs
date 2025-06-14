@@ -10,6 +10,7 @@ namespace VotingRoom.Client
             var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
             builder.Services.AddScoped<IVotingService, VotingService>();
+            builder.Services.AddSingleton<ClientStateProvider>();
 
             await builder.Build().RunAsync();
         }
