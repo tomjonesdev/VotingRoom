@@ -5,6 +5,7 @@
 @using VotingRoom.Client.Services
 @using VotingRoom.Common.Enums
 @using VotingRoom.Common.Models
+@inject IJSRuntime JSRuntime
 @inject IVotingService VotingService
 @inject ClientStateProvider ClientState
 @implements IAsyncDisposable
@@ -28,6 +29,23 @@ else if (ClientState.Room is not null)
 
     protected override async Task OnInitializedAsync()
     {
+        /*
+         * System.InvalidOperationException
+            JavaScript interop calls cannot be issued during server-side static rendering, because the 
+            page has not yet loaded in the browser. Statically-rendered components must wrap any JavaScript 
+            interop calls in conditional logic to ensure those interop calls are not attempted during static 
+            rendering.
+         */
+        var storageRoomIds = await JSRuntime.InvokeAsync<List<string>>("localStorage.getItem", "rooms");
+        if (storageRoomIds.Contains(RoomId.ToString()))
+        {
+            Console.WriteLine("Unable to join room");
+            return;
+        }
+
+        storageRoomIds.Add(RoomId.ToString());
+
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "rooms", storageRoomIds);
         await VotingService.Connect();
 
         // TODO: Retrieve room name for subsequent users when they connect (i.e prior to submitting their name)
