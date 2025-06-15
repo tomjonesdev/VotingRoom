@@ -4,7 +4,7 @@ using VotingRoom.Common.Models;
 
 namespace VotingRoom.Client.Services;
 
-public class VotingService(NavigationManager navigationManager) : IVotingService
+public class VotingService(NavigationManager navigationManager) : IVotingService//, IDisposable
 {
     private HubConnection _hubConnection;
     public event Action<Room, Voter>? OnRoomCreated;
@@ -74,4 +74,12 @@ public class VotingService(NavigationManager navigationManager) : IVotingService
             await _hubConnection.InvokeAsync("ResetVotes", roomId);
         }
     }
+
+    //public async Task DisposeAsync()
+    //{
+    //    if (_hubConnection.State == HubConnectionState.Connected)
+    //    {
+    //        await _hubConnection.InvokeAsync("UserLeft", roomId, _hubConnection.ConnectionId);
+    //    }
+    //}
 }

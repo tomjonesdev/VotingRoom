@@ -6,6 +6,19 @@ namespace VotingRoom.Hubs;
 
 public class RoomHub(IMemoryCache memoryCache) : Hub
 {
+    public override Task OnConnectedAsync()
+    {
+        return base.OnConnectedAsync();
+    }
+
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        var connectionId = Context.ConnectionId;
+        // loop through all rooms and remove the user? Seems ridiculous
+        // state tracking service suggestion: https://chatgpt.com/c/684ea6b8-7fbc-800f-8d97-17ef08803184
+        return base.OnDisconnectedAsync(exception);
+    }
+
     public async Task CreateRoom(RoomCreateRequest request)
     {
         var initialUser = new Voter
