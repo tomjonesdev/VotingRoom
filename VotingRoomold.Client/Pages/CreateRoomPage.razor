@@ -1,0 +1,85 @@
+﻿@page "/"
+@rendermode InteractiveWebAssembly
+@using Microsoft.AspNetCore.SignalR.Client
+@using VotingRoom.Client.Services
+@using VotingRoom.Common.Enums
+@using VotingRoom.Common.Models
+@inject NavigationManager Navigation
+@inject IVotingService VotingService
+@inject ClientStateProvider ClientState
+@implements IAsyncDisposable
+
+<h1>Create a new room</h1>
+
+<EditForm Model="createRoomRequest" OnValidSubmit="CreateRoom" FormName="CreateRoom">
+    <DataAnnotationsValidator />
+
+    <label>
+        Room name
+        <InputText @bind-Value="createRoomRequest.RoomName" />
+        <ValidationMessage For="() => createRoomRequest.RoomName" />
+    </label>
+
+    <br />
+
+    <label>
+        Max votes per participant
+        <InputNumber @bind-Value="createRoomRequest.MaxVotes" />
+        <ValidationMessage For="() => createRoomRequest.MaxVotes" />
+    </label>
+
+    <br />
+
+    <label>
+        Your name
+        <InputText @bind-Value="createRoomRequest.AdminName" />
+        <ValidationMessage For="() => createRoomRequest.AdminName" />
+    </label>
+
+    <br />
+
+    <InputRadioGroup @bind-Value="createRoomRequest.AdminVoterType">
+        @foreach (var type in Enum.GetValues<VoterType>())
+        {
+            <div>
+                <label>
+                    <InputRadio Value="type" />
+                    Join as a @type
+                </label>
+            </div>
+        }
+    </InputRadioGroup>
+
+    <small>Participants can vote, spectators can't</small>
+    <button class="btn btn-success">Create room</button>
+</EditForm>
+
+@code {
+    RoomCreateRequest createRoomRequest = new();
+
+    protected async override void OnInitialized()
+    {
+        await VotingService.Connect();
+
+        VotingService.OnRoomCreated += HandleRoomCreated;
+    }
+
+    async Task CreateRoom()
+    {
+        await VotingService.CreateRoom(createRoomRequest);
+    }
+
+    private void HandleRoomCreated(
+        Room newRoom,
+        Voter initialUser)
+    {
+        ClientState.Room = newRoom;
+        ClientState.CurrentUser = initialUser;
+        Navigation.NavigateTo("/" + newRoom.Id);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        VotingService.OnRoomCreated -= HandleRoomCreated;
+    }
+}

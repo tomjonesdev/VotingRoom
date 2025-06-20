@@ -1,0 +1,90 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@using VotingRoom.Client.Services
+@using VotingRoom.Common.Enums
+@using VotingRoom.Common.Models
+@inject NavigationManager Navigation
+@inject IVotingService VotingService
+@inject ClientStateProvider ClientState
+
+<div class="card-group">
+    @foreach (var item in ClientState.Room.VoteItems)
+    {
+        <div class="card" style="width: 18rem;">
+            <div class="card-body">
+                <p>Total votes: @(ClientState.Room.ShowVotes? item.Votes: "(hidden)")</p>
+                <button class="btn btn-lg btn-success w-100" @onclick="() => CastVote(item)" disabled="@(ClientState.CurrentUser.RemainingVotes == 0 || ClientState.CurrentUser.Type == VoterType.Spectator)">@item.Name</button>
+            </div>
+            @if (ClientState.Room.ShowVotes)
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var voter in item.Voters)
+                    {
+                        <li class="list-group-item">@voter.Name</li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        VotingService.OnVoteReceived += HandleVoteReceived;
+        VotingService.OnRevealVotes += HandleRevealVotes;
+        VotingService.OnResetVotes += HandleResetVotes;
+    }
+
+    async Task CastVote(VoteItem voteItem)
+    {
+        if (ClientState.CurrentUser.RemainingVotes > 0)
+        {
+            ClientState.CurrentUser.RemainingVotes--;
+
+            var vote = new Vote
+            {
+                Choice = voteItem,
+                Voter = ClientState.CurrentUser,
+                RoomId = ClientState.Room.Id,
+            };
+
+            await VotingService.SendVote(vote);
+        }
+    }
+
+    private void HandleVoteReceived(Vote vote)
+    {
+        InvokeAsync(() =>
+        {
+            ClientState.Room.VoteItems.First(vi => vi.Id == vote.Choice.Id).Voters.Add(vote.Voter);
+            StateHasChanged();
+        });
+    }
+
+    private void HandleRevealVotes()
+    {
+        InvokeAsync(() =>
+        {
+            ClientState.Room.ShowVotes = true;
+            StateHasChanged();
+        });
+    }
+
+    private void HandleResetVotes()
+    {
+        InvokeAsync(() =>
+        {
+            ClientState.Room.ShowVotes = false;
+            ClientState.Room.VoteItems.ForEach(vi => vi.Voters.Clear());
+            ClientState.CurrentUser.RemainingVotes = ClientState.Room.MaxVotes;
+            StateHasChanged();
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        VotingService.OnVoteReceived -= HandleVoteReceived;
+        VotingService.OnRevealVotes -= HandleRevealVotes;
+        VotingService.OnResetVotes -= HandleResetVotes;
+    }
+}
