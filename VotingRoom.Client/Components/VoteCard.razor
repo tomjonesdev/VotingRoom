@@ -7,17 +7,21 @@
 @inject ClientStateProvider ClientState
 @implements IAsyncDisposable
 
-<MudCard>
+<MudCard Style="align-items: center;" Outlined="true">
     <MudCardHeader>
         @if (ClientState.Room.ShowVotes)
         {
-            <MudBadge Content="@VoteItem.Votes" Color="Color.Primary" Class="mx-6 my-4">
-                <MudText>@VoteItem.Name</MudText>
+            <MudBadge Content="@VoteItem.Votes" Color="Color.Error" Class="mx-6 my-4">
+                <MudText Align="Align.Center" Style="font-size: 3rem;">@VoteItem.Name</MudText>
             </MudBadge>
+        }
+        else
+        {
+            <MudText Align="Align.Center" Style="font-size: 4rem;">@VoteItem.Name</MudText>
         }
     </MudCardHeader>
 
-    <MudCardContent>
+    <MudCardContent Style="padding-top: 0;">
         <MudButton OnClick="() => CastVote(VoteItem)" Disabled="@(ClientState.CurrentUser.RemainingVotes == 0 || ClientState.CurrentUser.Type == VoterType.Spectator)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.CheckBox" Color="Color.Success">Cast vote</MudButton>
         @if (ClientState.Room.ShowVotes)
         {
