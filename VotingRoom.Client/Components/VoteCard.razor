@@ -40,7 +40,6 @@
 
     protected override void OnInitialized()
     {
-        VotingService.OnVoteReceived += HandleVoteReceived;
         VotingService.OnRevealVotes += HandleRevealVotes;
         VotingService.OnResetVotes += HandleResetVotes;
     }
@@ -60,15 +59,6 @@
 
             await VotingService.SendVote(vote);
         }
-    }
-
-    private void HandleVoteReceived(Vote vote)
-    {
-        InvokeAsync(() =>
-        {
-            ClientState.Room.VoteItems.First(vi => vi.Id == vote.Choice.Id).Voters.Add(vote.Voter);
-            StateHasChanged();
-        });
     }
 
     private void HandleRevealVotes()
@@ -93,7 +83,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        VotingService.OnVoteReceived -= HandleVoteReceived;
         VotingService.OnRevealVotes -= HandleRevealVotes;
         VotingService.OnResetVotes -= HandleResetVotes;
     }

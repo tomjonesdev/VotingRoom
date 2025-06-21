@@ -88,6 +88,7 @@ else if (ClientState.Room is not null)
     {
         InvokeAsync(() =>
         {
+            ClientState.Room.VoteItems.First(vi => vi.Id == vote.Choice.Id).Voters.Add(vote.Voter);
             ClientState.Room.Voters.First(v => v.Id == vote.Voter.Id).RemainingVotes -= 1;
             StateHasChanged();
         });
