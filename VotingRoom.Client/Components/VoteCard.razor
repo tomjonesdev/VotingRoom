@@ -9,16 +9,7 @@
 
 <MudCard Style="align-items: center;" Outlined="true">
     <MudCardHeader>
-        @if (ClientState.Room.ShowVotes)
-        {
-            <MudBadge Content="@VoteItem.Votes" Color="Color.Error" Class="mx-6 my-4">
-                <MudText Align="Align.Center" Style="font-size: 3rem;">@VoteItem.Name</MudText>
-            </MudBadge>
-        }
-        else
-        {
-            <MudText Align="Align.Center" Style="font-size: 4rem;">@VoteItem.Name</MudText>
-        }
+        <MudText Align="Align.Center" Style="font-size: 4rem;">@VoteItem.Name</MudText>
     </MudCardHeader>
 
     <MudCardContent Style="padding-top: 0;">
@@ -29,10 +20,10 @@
             <MudList T="string">
                 @foreach (var voter in VoteItem.Voters)
                 {
-                <MudListItem>
-                    <MudAvatar Color="Color.Primary">@voter.Name.First()</MudAvatar>
-                    @voter.Name
-                </MudListItem>
+                    <MudListItem>
+                        <MudAvatar Color="Color.Primary">@voter.Name.First()</MudAvatar>
+                        @voter.Name
+                    </MudListItem>
                 }
             </MudList>
         }
