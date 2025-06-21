@@ -6,7 +6,7 @@
 @inject IVotingService VotingService
 @inject ClientStateProvider ClientState
 
-<div class="card-group">
+<MudPaper Class="pa-16 ma-2" Elevation="3" Style="flex-grow: 5">
     @foreach (var item in ClientState.Room.VoteItems)
     {
         <div class="card" style="width: 18rem;">
@@ -25,7 +25,7 @@
             }
         </div>
     }
-</div>
+</MudPaper>
 
 @code {
     protected override void OnInitialized()

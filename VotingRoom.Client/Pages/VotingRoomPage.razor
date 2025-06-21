@@ -9,9 +9,8 @@
 @inject ClientStateProvider ClientState
 @implements IAsyncDisposable
 
-<PageTitle>Voting Room</PageTitle>
-
-<h1>@ClientState.Room?.Name</h1>
+<PageTitle>Voting Room - @ClientState.Room?.Name</PageTitle>
+<MudText Typo="Typo.h1" Align="Align.Center" GutterBottom>@(ClientState.Room?.Name ?? "Voting Room")</MudText>
 
 @if (ClientState.CurrentUser is null)
 {
@@ -20,7 +19,23 @@
 else if (ClientState.Room is not null)
 {
     <RoomHeading Voter="ClientState.CurrentUser" Room="ClientState.Room" />
-    <VoteCards />
+
+    <div class="d-flex justify-space-between align-start">
+        <VoteCards />
+        <MudPaper Class="pa-16 ma-2" Elevation="3" Style="flex-grow: 1">
+            <h3>Participants</h3>
+            @if (ClientState.CurrentUser.Type == VoterType.Participant)
+            {
+                <p>You have @ClientState.CurrentUser.RemainingVotes/@ClientState.Room.MaxVotes votes remaining</p>
+            }
+            <ul>
+                @foreach (var voter in ClientState.Room.Voters)
+                {
+                    <li class="text-nowrap">@voter.Name (@voter.Type) @(voter.RemainingVotes == 0 ? "✅" : "❌")</li>
+                }
+            </ul>
+        </MudPaper>
+    </div>
 }
 
 @code {
@@ -33,6 +48,7 @@ else if (ClientState.Room is not null)
         // TODO: Retrieve room name for subsequent users when they connect (i.e prior to submitting their name)
         VotingService.OnUserJoined += HandleUserJoined;
         VotingService.OnUpdateCurrentUser += HandleUpdateCurrentUser;
+        VotingService.OnVoteReceived += HandleVoteReceived;
     }
 
     private void HandleUserJoined(Voter newUser)
@@ -53,9 +69,19 @@ else if (ClientState.Room is not null)
         StateHasChanged();
     }
 
+    private void HandleVoteReceived(Vote vote)
+    {
+        InvokeAsync(() =>
+        {
+            ClientState.Room.Voters.First(v => v.Id == vote.Voter.Id).RemainingVotes -= 1;
+            StateHasChanged();
+        });
+    }
+
     public async ValueTask DisposeAsync()
     {
         VotingService.OnUserJoined -= HandleUserJoined;
         VotingService.OnUpdateCurrentUser -= HandleUpdateCurrentUser;
+        VotingService.OnVoteReceived -= HandleVoteReceived;
     }
 }

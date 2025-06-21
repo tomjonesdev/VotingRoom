@@ -7,34 +7,20 @@
 @inject ClientStateProvider ClientState
 @implements IAsyncDisposable
 
-<div class="room-description">
-    <div>
-        <h2>Story point voting</h2>
-        <p>Simple story point voting page, using the Fibonacci sequence as a way to ascertain a task's <strong>complexity</strong>.</p>
+<MudPaper Class="pa-16 ma-2" Elevation="3">
+    <MudText Typo="Typo.h2" GutterBottom>Story point voting</MudText>
+    <MudText GutterBottom>Simple story point voting page, using the Fibonacci sequence as a way to ascertain a task's <strong>complexity</strong>.</MudText>
 
-        <button @onclick=@(() => JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Navigation.Uri)) class="btn btn-primary">Copy room URL to clipboard</button>
+    <div class="d-flex" style="gap: 1rem">
+        <MudButton OnClick="@(() => JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Navigation.Uri))" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.ContentCopy" Color="Color.Primary">Copy room URL to clipboard</MudButton>
 
         @if (Voter.IsAdmin)
         {
-            <button @onclick="() => VotingService.RevealVotes(Room.Id)" class="btn btn-success">Reveal votes</button>
-            <button @onclick="() => VotingService.ResetVotes(Room.Id)" class="btn btn-danger">Reset votes</button>
+            <MudButton OnClick="() => VotingService.RevealVotes(Room.Id)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Visibility" Color="Color.Success">Reveal votes</MudButton>
+            <MudButton OnClick="() => VotingService.ResetVotes(Room.Id)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Recycling" Color="Color.Error">Reset votes</MudButton>
         }
     </div>
-
-    <div>
-        <h3>Participants</h3>
-        @if (Voter.Type == VoterType.Participant)
-        {
-            <p>You have @ClientState.CurrentUser.RemainingVotes/@Room.MaxVotes votes remaining</p>
-        }
-        <ul>
-            @foreach (var voter in ClientState.Room.Voters)
-            {
-                <li class="text-nowrap">@voter.Name (@voter.Type) @(voter.RemainingVotes == 0 ? "✅" : "❌")</li>
-            }
-        </ul>
-    </div>
-</div>
+</MudPaper>
 
 @code {
     [Parameter] public required Voter Voter { get; set; }
@@ -42,18 +28,8 @@
 
     protected override void OnInitialized()
     {
-        VotingService.OnVoteReceived += HandleVoteReceived;
         VotingService.OnRevealVotes += HandleRevealVotes;
         VotingService.OnResetVotes += HandleResetVotes;
-    }
-
-    private void HandleVoteReceived(Vote vote)
-    {
-        InvokeAsync(() =>
-        {
-            ClientState.Room.Voters.First(v => v.Id == vote.Voter.Id).RemainingVotes -= 1;
-            StateHasChanged();
-        });
     }
 
     private void HandleRevealVotes()
@@ -78,7 +54,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        VotingService.OnVoteReceived -= HandleVoteReceived;
         VotingService.OnRevealVotes -= HandleRevealVotes;
         VotingService.OnResetVotes -= HandleResetVotes;
     }

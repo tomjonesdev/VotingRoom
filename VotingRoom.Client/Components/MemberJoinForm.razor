@@ -3,32 +3,25 @@
 @using VotingRoom.Common.Enums
 @inject IVotingService VotingService
 
-<EditForm Model="voter" OnValidSubmit="JoinRoom">
+<EditForm Model="voter" OnValidSubmit="JoinRoom" FormName="JoinRoom">
     <DataAnnotationsValidator />
 
-    <label>
-        Your name
-        <InputText @bind-Value="voter.Name" />
-        <ValidationMessage For="() => voter.Name" />
-    </label>
+    <MudTextField @bind-Value="voter.Name" Label="Your name" Variant="Variant.Text" For="@(() => voter.Name)"></MudTextField>
 
     <br />
 
-    <InputRadioGroup @bind-Value="voter.Type">
+    <MudRadioGroup @bind-Value="voter.Type">
         @foreach (var type in Enum.GetValues<VoterType>())
         {
-            <div>
-                <label>
-                    <InputRadio Value="type" />
-                    Join as a @type
-                </label>
-            </div>
+            <MudRadio Value="type" Color="Color.Primary" Dense="true">Join as a @type</MudRadio>
         }
-    </InputRadioGroup>
+    </MudRadioGroup>
+    <small>(Participants can vote, spectators can't)</small>
 
-    <small>Participants can vote, spectators can't</small>
     <br />
-    <button class="btn btn-success">Join</button>
+    <br />
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Join room</MudButton>
 </EditForm>
 
 @code {
