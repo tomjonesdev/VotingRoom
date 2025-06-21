@@ -21,19 +21,34 @@ else if (ClientState.Room is not null)
     <RoomHeading Voter="ClientState.CurrentUser" Room="ClientState.Room" />
 
     <div class="d-flex justify-space-between align-start">
-        <VoteCards />
-        <MudPaper Class="pa-16 ma-2" Elevation="3" Style="flex-grow: 1">
-            <h3>Participants</h3>
+        <MudPaper Class="pa-16 ma-2" Elevation="3" Style="flex-grow: 5">
             @if (ClientState.CurrentUser.Type == VoterType.Participant)
             {
-                <p>You have @ClientState.CurrentUser.RemainingVotes/@ClientState.Room.MaxVotes votes remaining</p>
+                <MudText Align="Align.Center" Style="font-size: 2rem;" GutterBottom>You have @ClientState.CurrentUser.RemainingVotes/@ClientState.Room.MaxVotes votes remaining</MudText>
             }
-            <ul>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem;">
+                @foreach (var item in ClientState.Room.VoteItems)
+                {
+                    <VoteCard VoteItem="item" />
+                }
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-16 ma-2" Elevation="3" Style="flex-grow: 1">
+            <MudText Typo="Typo.h5" GutterBottom>Participants</MudText>
+            <MudList T="string" Gutters="false">
                 @foreach (var voter in ClientState.Room.Voters)
                 {
-                    <li class="text-nowrap">@voter.Name (@voter.Type) @(voter.RemainingVotes == 0 ? "✅" : "❌")</li>
+                    <MudListItem>
+                        <MudBadge Color="@(voter.RemainingVotes == 0 ? Color.Success : Color.Error)" Overlap="true" Bordered="true">
+                            <MudAvatar Color="Color.Primary">
+                                @voter.Name.First()
+                            </MudAvatar>
+                        </MudBadge>
+                        <MudText Inline Class="ms-3">@($"{voter.Name} ({voter.Type})")</MudText>
+                    </MudListItem>
                 }
-            </ul>
+            </MudList>
         </MudPaper>
     </div>
 }

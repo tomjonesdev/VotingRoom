@@ -66,8 +66,6 @@ public class RoomHub(IMemoryCache memoryCache) : Hub
         room.Voters.First(vi => vi.Id == vote.Voter.Id).RemainingVotes--;
 
         var cacheKey = "room:" + vote.RoomId;
-        var cachedVoter = room.Voters.FirstOrDefault(v => v.Id == vote.Voter.Id);
-
         memoryCache.Set(cacheKey, room);
 
         await Clients.Group(vote.RoomId.ToString()).SendAsync("ReceiveVote", vote);

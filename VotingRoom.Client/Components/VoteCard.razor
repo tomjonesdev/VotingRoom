@@ -5,29 +5,39 @@
 @inject NavigationManager Navigation
 @inject IVotingService VotingService
 @inject ClientStateProvider ClientState
+@implements IAsyncDisposable
 
-<MudPaper Class="pa-16 ma-2" Elevation="3" Style="flex-grow: 5">
-    @foreach (var item in ClientState.Room.VoteItems)
-    {
-        <div class="card" style="width: 18rem;">
-            <div class="card-body">
-                <p>Total votes: @(ClientState.Room.ShowVotes? item.Votes: "(hidden)")</p>
-                <button class="btn btn-lg btn-success w-100" @onclick="() => CastVote(item)" disabled="@(ClientState.CurrentUser.RemainingVotes == 0 || ClientState.CurrentUser.Type == VoterType.Spectator)">@item.Name</button>
-            </div>
-            @if (ClientState.Room.ShowVotes)
-            {
-                <ul class="list-group list-group-flush">
-                    @foreach (var voter in item.Voters)
-                    {
-                        <li class="list-group-item">@voter.Name</li>
-                    }
-                </ul>
-            }
-        </div>
-    }
-</MudPaper>
+<MudCard>
+    <MudCardHeader>
+        @if (ClientState.Room.ShowVotes)
+        {
+            <MudBadge Content="@VoteItem.Votes" Color="Color.Primary" Class="mx-6 my-4">
+                <MudText>@VoteItem.Name</MudText>
+            </MudBadge>
+        }
+    </MudCardHeader>
+
+    <MudCardContent>
+        <MudButton OnClick="() => CastVote(VoteItem)" Disabled="@(ClientState.CurrentUser.RemainingVotes == 0 || ClientState.CurrentUser.Type == VoterType.Spectator)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.CheckBox" Color="Color.Success">Cast vote</MudButton>
+        @if (ClientState.Room.ShowVotes)
+        {
+            <MudDivider />
+            <MudList T="string">
+                @foreach (var voter in VoteItem.Voters)
+                {
+                <MudListItem>
+                    <MudAvatar Color="Color.Primary">@voter.Name.First()</MudAvatar>
+                    @voter.Name
+                </MudListItem>
+                }
+            </MudList>
+        }
+    </MudCardContent>
+</MudCard>
 
 @code {
+    [Parameter] public VoteItem VoteItem { get; set; }
+
     protected override void OnInitialized()
     {
         VotingService.OnVoteReceived += HandleVoteReceived;
