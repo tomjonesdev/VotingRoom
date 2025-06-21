@@ -14,44 +14,27 @@
 <EditForm Model="createRoomRequest" OnValidSubmit="CreateRoom" FormName="CreateRoom">
     <DataAnnotationsValidator />
 
-    <label>
-        Room name
-        <InputText @bind-Value="createRoomRequest.RoomName" />
-        <ValidationMessage For="() => createRoomRequest.RoomName" />
-    </label>
-
+    <MudTextField @bind-Value="createRoomRequest.RoomName" Label="Room name" Variant="Variant.Text" For="@(() => createRoomRequest.RoomName)"></MudTextField>
     <br />
 
-    <label>
-        Max votes per participant
-        <InputNumber @bind-Value="createRoomRequest.MaxVotes" />
-        <ValidationMessage For="() => createRoomRequest.MaxVotes" />
-    </label>
-
+    <MudNumericField @bind-Value="createRoomRequest.MaxVotes" Label="Max votes per participant" Variant="Variant.Text" Min="0" Max="10" For="@(() => createRoomRequest.MaxVotes)" />
     <br />
 
-    <label>
-        Your name
-        <InputText @bind-Value="createRoomRequest.AdminName" />
-        <ValidationMessage For="() => createRoomRequest.AdminName" />
-    </label>
-
+    <MudTextField @bind-Value="createRoomRequest.AdminName" Label="Your name" Variant="Variant.Text" For="@(() => createRoomRequest.AdminName)"></MudTextField>
     <br />
 
-    <InputRadioGroup @bind-Value="createRoomRequest.AdminVoterType">
+    <MudRadioGroup @bind-Value="createRoomRequest.AdminVoterType">
         @foreach (var type in Enum.GetValues<VoterType>())
         {
-            <div>
-                <label>
-                    <InputRadio Value="type" />
-                    Join as a @type
-                </label>
-            </div>
+            <MudRadio Value="type" Color="Color.Primary" Dense="true">Join as a @type</MudRadio>
         }
-    </InputRadioGroup>
+    </MudRadioGroup>
+    <small>(Participants can vote, spectators can't)</small>
 
-    <small>Participants can vote, spectators can't</small>
-    <button class="btn btn-success">Create room</button>
+    <br />
+    <br />
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Create room</MudButton>
 </EditForm>
 
 @code {
