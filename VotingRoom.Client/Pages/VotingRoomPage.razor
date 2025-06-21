@@ -64,6 +64,7 @@ else if (ClientState.Room is not null)
         VotingService.OnUserJoined += HandleUserJoined;
         VotingService.OnUpdateCurrentUser += HandleUpdateCurrentUser;
         VotingService.OnVoteReceived += HandleVoteReceived;
+        VotingService.OnResetVotes += HandleResetVotes;
     }
 
     private void HandleUserJoined(Voter newUser)
@@ -94,10 +95,20 @@ else if (ClientState.Room is not null)
         });
     }
 
+    private void HandleResetVotes()
+    {
+        InvokeAsync(() =>
+        {
+            ClientState.Room.Voters.ForEach(v => v.RemainingVotes = ClientState.Room.MaxVotes);
+            StateHasChanged();
+        });
+    }
+
     public async ValueTask DisposeAsync()
     {
         VotingService.OnUserJoined -= HandleUserJoined;
         VotingService.OnUpdateCurrentUser -= HandleUpdateCurrentUser;
         VotingService.OnVoteReceived -= HandleVoteReceived;
+        VotingService.OnResetVotes -= HandleResetVotes;
     }
 }
